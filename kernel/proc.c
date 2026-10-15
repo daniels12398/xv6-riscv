@@ -524,7 +524,22 @@ scheduler(void)
       acquire(&p->lock);
 
       if (p->state == RUNNABLE) {
-        if (best == 0 || p->priority > best->priority) {
+         int effective_priority = p->priority + (ticks - p->readytime);
+
+        if (effective_priority > MAXEFFPRIORITY)
+          effective_priority = MAXEFFPRIORITY;
+
+        int best_effective_priority = -1;
+
+        if (best != 0) {
+          best_effective_priority =
+            best->priority + (ticks - best->readytime);
+
+          if (best_effective_priority > MAXEFFPRIORITY)
+            best_effective_priority = MAXEFFPRIORITY;
+        }
+
+        if (best == 0 || effective_priority > best_effective_priority) {
           if (best != 0)
             release(&best->lock);
           best = p;
