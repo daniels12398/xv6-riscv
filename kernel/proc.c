@@ -498,6 +498,12 @@ void
 scheduler(void)
 {
   struct proc *p;
+
+
+  #if SCHED_POLICY == SCHED_PRIORITY
+  struct proc *best;
+  #endif
+
   struct cpu *c = mycpu();
 
   c->proc = 0;
@@ -510,27 +516,50 @@ scheduler(void)
     intr_on();
     intr_off();
 
-    int found = 0;
+        int found = 0;
+#if SCHED_POLICY == SCHED_PRIORITY
+    best = 0;
+
     for (p = proc; p < &proc[NPROC]; p++) {
       acquire(&p->lock);
+
       if (p->state == RUNNABLE) {
-        // Switch to chosen process.  It is the process's job
-        // to release its lock and then reacquire it
-        // before jumping back to us.
+        if (best == 0 || p->priority > best->priority) {
+          if (best != 0)
+            release(&best->lock);
+          best = p;
+          continue;
+        }
+      }
+
+      release(&p->lock);
+    }
+
+    if (best != 0) {
+      best->state = RUNNING;
+      c->proc = best;
+      swtch(&c->context, &best->context);
+      mycpu()->intena = 0;
+      c->proc = 0;
+      found = 1;
+      release(&best->lock);
+    }
+#else
+    for (p = proc; p < &proc[NPROC]; p++) {
+      acquire(&p->lock);
+
+      if (p->state == RUNNABLE) {
         p->state = RUNNING;
         c->proc = p;
         swtch(&c->context, &p->context);
-
-        // Don't re-enable interrupts on release.
         mycpu()->intena = 0;
-
-        // Process is done running for now.
-        // It should have changed its p->state before coming back.
         c->proc = 0;
         found = 1;
       }
+
       release(&p->lock);
     }
+#endif
     if (found == 0) {
       // nothing to run; stop running on this core until an interrupt.
       asm volatile("wfi");
