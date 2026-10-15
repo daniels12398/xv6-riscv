@@ -130,3 +130,20 @@ sys_getprocs(void)
 
   return kgetprocs(addr);
 }
+uint64
+sys_getpriority(void)
+{
+  struct proc *p = myproc();
+  return p->priority;
+}
+
+uint64
+sys_setpriority(void)
+{
+  int priority;
+
+  argint(0, &priority);
+  myproc()->priority = priority;
+
+  return 0;
+}

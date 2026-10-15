@@ -148,6 +148,7 @@ found:
   p->context.sp = p->kstack + PGSIZE;
 
    p->cputime = 0;
+   p->priority = 0;
   return p;
 }
 
@@ -276,7 +277,7 @@ kfork(void)
     return -1;
   }
   np->sz = p->sz;
-
+  np->priority = p->priority;
   // copy saved user registers.
   *(np->trapframe) = *(p->trapframe);
 
@@ -760,6 +761,8 @@ kgetprocs(uint64 addr)
         ps.ppid = parent->pid;
       else
         ps.ppid = 0;
+
+       ps.priority = p->priority;
 
       if(copyout(curproc->pagetable, curproc->sz,
                  addr + n * sizeof(struct pstat),
