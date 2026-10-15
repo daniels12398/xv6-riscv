@@ -737,6 +737,45 @@ either_copyin(void *dst, int user_src, uint64 src, uint64 len)
 // Print a process listing to console.  For debugging.
 // Runs when user types ^P on console.
 // No lock to avoid wedging a stuck machine further.
+int
+kgetprocs(uint64 addr)
+{
+  struct proc *p;
+  struct proc *parent;
+  struct pstat ps;
+  struct proc *curproc = myproc();
+  int n = 0;
+
+  for(p = proc; p < &proc[NPROC]; p++){
+    acquire(&p->lock);
+
+    if(p->state != UNUSED){
+      ps.pid = p->pid;
+      ps.state = p->state;
+      ps.size = p->sz;
+      safestrcpy(ps.name, p->name, sizeof(ps.name));
+
+      parent = p->parent;
+      if(parent != 0)
+        ps.ppid = parent->pid;
+      else
+        ps.ppid = 0;
+
+      if(copyout(curproc->pagetable, curproc->sz,
+                 addr + n * sizeof(struct pstat),
+                 (char *)&ps, sizeof(ps)) < 0){
+        release(&p->lock);
+        return -1;
+      }
+
+      n++;
+    }
+
+    release(&p->lock);
+  }
+
+  return n;
+}
 void
 procdump(void)
 {
